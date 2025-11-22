@@ -1,0 +1,24 @@
+# Arduino / PlatformIO build artifacts
+build/
+.pio/
+*.elf
+*.bin
+*.hex
+*.o
+*.map
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS
+.DS_Store
+
+# macOS Finder extended attributes
+._*
+
+# Logs and temp
+*.log
+*.tmp

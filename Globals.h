@@ -1,0 +1,83 @@
+#ifndef GLOBALS_H
+#define GLOBALS_H
+
+#include <Arduino.h>
+
+/*
+ Debug logging helpers: define `DEBUG` to enable serial debug output
+ (add `#define DEBUG` above this block).
+*/
+#ifdef DEBUG
+#define DPRINT(...) Serial.print(__VA_ARGS__)
+#define DPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DPRINTF(...) Serial.printf(__VA_ARGS__)
+#define SERIAL_DEBUG_INIT() Serial.setDebugOutput(true)
+#else
+#define DPRINT(...)
+#define DPRINTLN(...)
+#define DPRINTF(...)
+#define SERIAL_DEBUG_INIT() Serial.setDebugOutput(false)
+#endif
+
+// Enums for mode and calibration step
+enum mode
+{
+  NORMAL,
+  CALIBRATE
+};
+enum calibrationStep
+{
+  NONE,
+  INIT,
+  UP_KNOWN
+};
+
+// HomeKit PositionState values
+enum
+{
+  POS_DECREASING = 0,
+  POS_INCREASING = 1,
+  POS_STOPPED = 2
+};
+
+// Motion constants (provided by main translation unit). Shared read-only.
+extern const float SPEED_MAX;
+extern const float ACCEL;
+extern const int MIN_TRAVEL; // minimum required calibration travel in steps
+
+// Shared runtime state for the shades controller
+struct ShadesState
+{
+  // ---- Mode / state flags ----
+  mode currentMode;                       // NORMAL or CALIBRATE
+  calibrationStep currentCalibrationStep; // INIT, UP_KNOWN, etc.
+  bool confirmBlinkActive;                // true while confirmation blink sequence runs
+  bool exitCalibrationAfterBlink;         // leave CALIBRATE when confirmation finishes
+
+  // ---- Position / raw calibration points ----
+  int currentStep; // Current absolute step (rebased after calibration)
+  int maxSteps;    // Total travel after calibration (bottom raw - top raw)
+  int upStep;      // Raw step captured at TOP during calibration
+  int downStep;    // Raw step captured at BOTTOM during calibration
+
+  // ---- Calibration jogging control ----
+  int8_t calJogDir;       // -1 up, 0 stop, +1 down (continuous jog direction)
+  bool calRequireRelease; // Prevent accidental motion if buttons held entering CAL
+
+  // ---- MAIN (UP+DOWN) press tracking ----
+  bool lastBothPressed;    // Previous loop both-pressed state
+  uint32_t bothPressStart; // Timestamp when both buttons became pressed
+  bool mainLong5Handled;   // Guard for 5s long-press (enter calibration)
+  bool mainLong10Handled;  // Guard for 10s long-press (factory reset)
+
+  // ---- Timing ----
+  uint32_t startupTime;      // Boot time for initial button ignore window
+  uint32_t lastMovementTime; // For motor inactivity persistence and power logic
+
+  // ---- UI feedback ----
+  String lastMessage; // Last status / calibration message
+};
+
+extern ShadesState state;
+
+#endif
