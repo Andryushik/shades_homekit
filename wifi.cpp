@@ -4,9 +4,9 @@
 
 void wifiConnect()
 {
-  // Set a hostname and start captive-portal auto-connect if needed
+  // Set a compact hostname and start captive-portal auto-connect if needed
   WiFi.mode(WIFI_STA);
-  WiFi.hostname("shades_homekit");
+  WiFi.hostname("roller_shades");
   // Optional: reduce Wi‑Fi power-save jitter that can affect timing
   WiFi.setSleepMode(WIFI_NONE_SLEEP);
 
@@ -23,16 +23,18 @@ void wifiConnect()
   // autoConnect() blocks until connected or failed; no extra busy-wait needed
   DPRINTF("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
 
-  // Start mDNS so the device is reachable as shades_homekit.local
-  const char *host = "shades_homekit";
+  // Start mDNS so the device is reachable as roller_shades.local
+  const char *host = "roller_shades";
   const uint8_t maxTries = 5;
   bool mdnsOk = false;
   for (uint8_t i = 0; i < maxTries; ++i)
   {
     if (MDNS.begin(host))
     {
+      // Use human-friendly instance name for the service while keeping host compact
+      MDNS.setInstanceName("Roller Shades");
       MDNS.addService("http", "tcp", 80);
-      DPRINTLN("mDNS started as shades_homekit.local");
+      DPRINTLN("mDNS started as roller_shades.local (instance: Roller Shades)");
       mdnsOk = true;
       break;
     }

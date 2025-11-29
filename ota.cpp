@@ -13,7 +13,7 @@ namespace OTA
 
   void setup()
   {
-    ArduinoOTA.setHostname("shades_homekit");
+    ArduinoOTA.setHostname("roller_shades");
     ArduinoOTA.setPassword("28142814");
 
     ArduinoOTA.onStart([]()

@@ -64,6 +64,9 @@ struct ShadesState
   int8_t calJogDir;       // -1 up, 0 stop, +1 down (continuous jog direction)
   bool calRequireRelease; // Prevent accidental motion if buttons held entering CAL
 
+  // ---- Hold/torque state ----
+  bool holdingActive; // true while coils are intentionally energized to hold position
+
   // ---- MAIN (UP+DOWN) press tracking ----
   bool lastBothPressed;    // Previous loop both-pressed state
   uint32_t bothPressStart; // Timestamp when both buttons became pressed

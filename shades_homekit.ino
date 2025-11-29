@@ -30,7 +30,7 @@ Helper helper;
 // Centralized runtime state (see `Globals.h` for field docs)
 ShadesState state = {NORMAL, NONE, false, false,
                      0, 0, 0, 0,
-                     0, false, false, 0,
+                     0, false, false, false, 0,
                      false, false, 0, 0, String()};
 
 // HomeKit characteristics (provided by accessory.c)
@@ -84,6 +84,8 @@ void setup()
   stepper.setCurrentPosition(state.currentStep);
 
   wifiConnect();
+  // Print chosen hostname and IP for quick verification
+  Serial.printf("Host: %s, IP: %s\n", WiFi.hostname().c_str(), WiFi.localIP().toString().c_str());
   homekitSetup();
   OTA::setup();
   // initialize buttons
@@ -211,8 +213,7 @@ void reset()
 void handleEngineControllerActivity()
 {
   static bool wasMoving = false;
-  static uint32_t stoppedAt = 0;     // timestamp when motion stopped
-  static bool holdingActive = false; // true while we intentionally keep coils energized
+  static uint32_t stoppedAt = 0; // timestamp when motion stopped
 
   bool moving = (stepper.distanceToGo() != 0) || (state.currentMode == CALIBRATE);
   if (moving)
@@ -227,7 +228,7 @@ void handleEngineControllerActivity()
   {
     wasMoving = false;
     stoppedAt = millis();
-    holdingActive = false;
+    state.holdingActive = false;
     if (state.currentMode != CALIBRATE)
     {
       saveConfig();
@@ -251,31 +252,31 @@ void handleEngineControllerActivity()
         // Immediate disable
         stepper.disableOutputs();
         stoppedAt = 0;
-        holdingActive = false;
+        state.holdingActive = false;
       }
       else if (HOLD_TORQUE_MS < 0)
       {
         // Infinite hold: ensure outputs are ON
         stepper.enableOutputs();
-        holdingActive = true;
+        state.holdingActive = true;
         // stoppedAt retained only for reference; never auto-disable
       }
       else
       {
         // Timed hold: keep outputs enabled until timeout
         stepper.enableOutputs();
-        holdingActive = true;
+        state.holdingActive = true;
       }
     }
     return; // wait for hold interval if configured
   }
 
   // If we are stopped and holding torque, check timeout (skip if infinite hold)
-  if (holdingActive && stoppedAt != 0 && HOLD_TORQUE_MS > 0 && (millis() - stoppedAt) >= (uint32_t)HOLD_TORQUE_MS)
+  if (state.holdingActive && stoppedAt != 0 && HOLD_TORQUE_MS > 0 && (millis() - stoppedAt) >= (uint32_t)HOLD_TORQUE_MS)
   {
     stepper.disableOutputs();
     stoppedAt = 0; // done holding
-    holdingActive = false;
+    state.holdingActive = false;
   }
 }
 
@@ -313,7 +314,7 @@ bool loadConfig()
 
 bool saveConfig()
 {
-  JsonDocument doc;
+  StaticJsonDocument<512> doc;
   doc["currentStep"] = state.currentStep;
   doc["maxSteps"] = state.maxSteps;
   doc["targetPositionValue"] = targetPosition.value.int_value;
@@ -350,7 +351,18 @@ void shadesControl()
     return;
 
   // Convert target percentage to steps (local variable)
-  long targetStep = ((100 - (float)targetPosition.value.int_value) / 100.0f) * state.maxSteps;
+  // Clamp targetPosition to [0,100] to avoid invalid writes
+  int tp = targetPosition.value.int_value;
+  if (tp < 0)
+    tp = 0;
+  else if (tp > 100)
+    tp = 100;
+  if (tp != targetPosition.value.int_value)
+  {
+    targetPosition.value.int_value = tp;
+    homekit_characteristic_notify(&targetPosition, targetPosition.value);
+  }
+  long targetStep = ((100 - (float)tp) / 100.0f) * state.maxSteps;
 
   // Command stepper to the target (run() moves it)
   if (targetStep != stepper.targetPosition())

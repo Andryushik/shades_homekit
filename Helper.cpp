@@ -2,7 +2,10 @@
 #include "Helper.h"
 #include "Globals.h"
 
-Helper::Helper() : _doc()
+// Define static storage for persistent config document
+StaticJsonDocument<4096> Helper::_doc;
+
+Helper::Helper()
 {
   if (!LittleFS.begin())
   {
@@ -40,6 +43,11 @@ boolean Helper::loadconfig()
     DPRINTLN("Failed to parse config file");
     return false;
   }
+  // Ensure a config version exists
+  if (!_doc["configVersion"].is<int>())
+  {
+    _doc["configVersion"] = 1;
+  }
   return true;
 }
 
@@ -57,7 +65,18 @@ boolean Helper::saveconfig(const JsonDocument &json)
     return false;
   }
 
-  if (serializeJson(json, configFile) == 0)
+  // Attach schema version
+  // Use a local StaticJsonDocument to build the saved JSON (1KB should be sufficient)
+  StaticJsonDocument<1024> doc;
+  JsonObject dst = doc.to<JsonObject>();
+  JsonObjectConst src = json.as<JsonObjectConst>();
+  for (JsonPairConst kv : src)
+  {
+    dst[kv.key()] = kv.value();
+  }
+  dst["configVersion"] = 1;
+
+  if (serializeJson(doc, configFile) == 0)
   {
     DPRINTLN("Failed to write JSON to config file");
     configFile.close();

@@ -3,12 +3,11 @@
 
 #include <Arduino.h>
 
-// Simple helpers for SPIFFS + ArduinoJson (v5) and Wi‑Fi manager
 #ifdef NO_INLINE
 #undef NO_INLINE
 #endif
-#include <ArduinoJson.h> // v6 API (DynamicJsonDocument/deserializeJson)
-#include <LittleFS.h>    // LittleFS (replacement for SPIFFS)
+#include <ArduinoJson.h>
+#include <LittleFS.h>
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
 
@@ -22,7 +21,7 @@ public:
   void resetsettings(WiFiManager &wifim);
 
 private:
-  JsonDocument _doc;
+  static StaticJsonDocument<4096> _doc;
   String _configfile;
 };
 

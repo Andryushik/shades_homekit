@@ -96,7 +96,7 @@ Endpoints (POST unless marked GET):
 
 Writes to SPIFFS limited to essential moments (movement completion, calibration success, reboot).
 
-You can reach the web UI either by entering the device IP in your browser (for example `http://192.168.x.y/`) or, once mDNS is active, via `http://shades_homekit.local/` on the same LAN.
+You can reach the web UI either by entering the device IP in your browser (for example `http://192.168.x.y/`) or, once mDNS is active, via `http://roller_shades.local/` on the same LAN.
 
 ## Software & Build
 

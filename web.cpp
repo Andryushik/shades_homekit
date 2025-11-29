@@ -64,7 +64,7 @@ static void handleRoot()
   page += F("<button class='act' data-act='/reboot'>Safe Reboot</button>");
   page += F("<button class='act' data-act='/factory' style=\"background:#b00020;color:#fff\">Factory Reset</button>");
   page += F("</div>");
-  page += F("<script>(function(){var prevStep=null;function u(){fetch('/status').then(r=>r.json()).then(s=>{var el; if((el=document.getElementById('cur')))el.textContent=s.currentStep; if((el=document.getElementById('max')))el.textContent=s.maxSteps; if((el=document.getElementById('mode'))){el.textContent=s.mode; if(s.mode==='CALIBRATE'){el.classList.add('blink');} else {el.classList.remove('blink');}} if((el=document.getElementById('pos')))el.textContent=s.position; var moving=(prevStep!==null && s.currentStep!==prevStep); prevStep=s.currentStep; var sb=document.getElementById('btnStop'); if(sb){ if(moving){sb.classList.add('blink');} else {sb.classList.remove('blink');}} var m=document.getElementById('msg'); if(m){m.textContent=s.msg||''; if(s.msg && s.msg.indexOf('too small')>-1){m.style.color='#b00020';} else if(s.msg){m.style.color='#036b00';} else {m.style.color='';}} var cs=document.getElementById('calSave'); if(cs){ if(s.mode==='CALIBRATE'){cs.style.display='block';} else {cs.style.display='none';}} var st=document.getElementById('calStart'), sp=document.getElementById('calStop'); if(st&&sp){ if(s.mode==='CALIBRATE'){st.style.display='none'; sp.style.display='inline-block';} else {st.style.display='inline-block'; sp.style.display='none';}}});} setInterval(u,400); window.addEventListener('load',u); document.addEventListener('click',function(e){var b=e.target; if(b.classList && b.classList.contains('act')){var act=b.getAttribute('data-act'); if(act==='/factory'){ if(!confirm('Factory reset will erase Wi-Fi, SPIFFS config, and HomeKit pairing. Continue?')) return; } fetch(act,{method:'POST'}).then(()=>setTimeout(u,300)); e.preventDefault();}});})();</script>");
+  page += F("<script>(()=>{let prevStep=null;const u=()=>{fetch('/status').then(r=>r.json()).then(s=>{var el; if((el=document.getElementById('cur')))el.textContent=s.currentStep; if((el=document.getElementById('max')))el.textContent=s.maxSteps; if((el=document.getElementById('mode'))){el.textContent=s.mode; if(s.mode==='CALIBRATE'){el.classList.add('blink');} else {el.classList.remove('blink');}} if((el=document.getElementById('pos')))el.textContent=s.position; var moving=!!s.moving; prevStep=s.currentStep; var sb=document.getElementById('btnStop'); if(sb){ if(moving){sb.classList.add('blink');} else {sb.classList.remove('blink');}} var m=document.getElementById('msg'); if(m){ m.textContent=s.msg||''; if(s.msg && s.msg.indexOf('too small')>-1){ m.style.color='#b00020'; } else if(s.msg){ m.style.color='#036b00'; } else { m.style.color=''; } } var cs=document.getElementById('calSave'); if(cs){ if(s.mode==='CALIBRATE'){ cs.style.display='block'; } else { cs.style.display='none'; } } var st=document.getElementById('calStart'), sp=document.getElementById('calStop'); if(st&&sp){ if(s.mode==='CALIBRATE'){ st.style.display='none'; sp.style.display='inline-block'; } else { st.style.display='inline-block'; sp.style.display='none'; } } });}; setInterval(u,400); window.addEventListener('load',u); document.addEventListener('click',(e)=>{ var b=e.target; if(b.classList && b.classList.contains('act')){ var act=b.getAttribute('data-act'); if(act==='/factory'){ if(!confirm('Factory reset will erase Wi-Fi, SPIFFS config, and HomeKit pairing. Continue?')) return; } fetch(act,{method:'POST'}).then(()=>{ setTimeout(u,300); }); e.preventDefault(); } });})();</script>");
   page += F("</body></html>");
   server.send(200, "text/html", page);
 }
@@ -224,12 +224,14 @@ static void handleFactoryPost()
 
 static void handleStatus()
 {
-  JsonDocument doc;
+  // Small JSON document for status
+  StaticJsonDocument<512> doc;
   doc["currentStep"] = state.currentStep;
   doc["maxSteps"] = state.maxSteps;
   doc["mode"] = (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL";
   doc["position"] = getCurrentPosition();
   doc["msg"] = state.lastMessage;
+  doc["moving"] = (stepper.distanceToGo() != 0);
   String out;
   serializeJson(doc, out);
   server.sendHeader("Cache-Control", "no-cache");
