@@ -7,8 +7,8 @@
 #ifdef NO_INLINE
 #undef NO_INLINE
 #endif
-#include <ArduinoJson.h> // v5 API (DynamicJsonBuffer/JsonVariant)
-#include <FS.h>          // SPIFFS
+#include <ArduinoJson.h> // v6 API (DynamicJsonDocument/deserializeJson)
+#include <LittleFS.h>    // LittleFS (replacement for SPIFFS)
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
 
@@ -17,12 +17,12 @@ class Helper
 public:
   Helper();
   boolean loadconfig();
-  JsonVariant getconfig();
-  boolean saveconfig(JsonVariant json);
+  JsonObjectConst getconfig() const;
+  boolean saveconfig(const JsonDocument &json);
   void resetsettings(WiFiManager &wifim);
 
 private:
-  JsonVariant _config;
+  JsonDocument _doc;
   String _configfile;
 };
 

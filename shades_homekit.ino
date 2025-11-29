@@ -10,10 +10,15 @@
 #include "web.h"
 
 // Speed/settings constants
-const float SPEED_MAX = 400.0f; // steps/s
-const float ACCEL = 100.0f;     // steps/s^2
+const float SPEED_MAX = 600.0f; // steps/s
+const float ACCEL = 150.0f;     // steps/s^2
 const float CAL_SPEED = 200.0f; // steps/s during calibration (continuous)
-const int MIN_TRAVEL = 4096;    // hardcoded minimum calibration travel (steps)
+// HOLD_TORQUE_MS semantics:
+//   0   -> disable coils immediately after stop
+//  >0   -> keep coils energized for that many milliseconds, then disable
+//  -1   -> never disable (always hold torque) WARNING: motor/driver will stay warm
+const int32_t HOLD_TORQUE_MS = 3000; // change to -1 for infinite hold
+const int MIN_TRAVEL = 4096;         // minimum calibration travel 1 full rotation (steps)
 
 // 28BYJ-48 via ULN2003 using HALF4WIRE; coil order IN1, IN3, IN2, IN4
 AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
@@ -74,6 +79,8 @@ void setup()
   // Initialize stepper with normal motion profile
   stepper.setMaxSpeed(SPEED_MAX);
   stepper.setAcceleration(ACCEL);
+  // Optional: tune pulse width for ULN2003 if needed (default is usually fine)
+  // stepper.setMinPulseWidth(2);
   stepper.setCurrentPosition(state.currentStep);
 
   wifiConnect();
@@ -92,8 +99,9 @@ void loop()
   // Buttons::loop() processes input/events
 
   Buttons::loop();
+  // Command new motion early so run()/runSpeed() executes with outputs already enabled
+  shadesControl();
   properLedDisplay();
-  handleEngineControllerActivity();
   webLoop();
   // Calibration: use continuous runSpeed() at constant CAL_SPEED
   if (state.currentMode == CALIBRATE)
@@ -148,6 +156,9 @@ void loop()
 
     if (stepper.distanceToGo() != 0)
     {
+      // Ensure outputs are enabled if a move is in progress (safety in case of external disable)
+      if (HOLD_TORQUE_MS == 0 || HOLD_TORQUE_MS > 0) // all finite modes
+        stepper.enableOutputs();
       state.lastMovementTime = millis();
     }
     stepper.run();
@@ -156,12 +167,13 @@ void loop()
   // Keep software step counter in sync with the stepper driver
   state.currentStep = stepper.currentPosition();
 
+  // Handle post-run housekeeping (notifications & power management)
+  handleEngineControllerActivity();
   homekitLoop();
-  shadesControl();
   OTA::loop();
 
-  // Small delay for smooth stepping and watchdog stability
-  delay(1);
+  // Yield instead of fixed delay to keep WiFi stack & watchdog happy with minimal jitter
+  yield();
 }
 
 void properLedDisplay()
@@ -198,25 +210,72 @@ void reset()
 // Turn motor power off after inactivity (kept for state housekeeping)
 void handleEngineControllerActivity()
 {
-  if (state.lastMovementTime != 0 && millis() - state.lastMovementTime > 1000)
+  static bool wasMoving = false;
+  static uint32_t stoppedAt = 0;     // timestamp when motion stopped
+  static bool holdingActive = false; // true while we intentionally keep coils energized
+
+  bool moving = (stepper.distanceToGo() != 0) || (state.currentMode == CALIBRATE);
+  if (moving)
   {
-    state.lastMovementTime = 0;
-    // Avoid saving config while in CALIBRATE; saves during calibration were
-    // noisy and not useful. Persist only when in NORMAL mode.
+    wasMoving = true;
+    stoppedAt = 0; // reset any pending hold timer while moving
+    return;
+  }
+
+  // Transition edge: moving -> stopped
+  if (wasMoving)
+  {
+    wasMoving = false;
+    stoppedAt = millis();
+    holdingActive = false;
     if (state.currentMode != CALIBRATE)
     {
       saveConfig();
       if (state.maxSteps != 0)
       {
-        currentPosition.value.int_value = getCurrentPosition();
-        homekit_characteristic_notify(&currentPosition, currentPosition.value);
+        int pos = getCurrentPosition();
+        if (currentPosition.value.int_value != pos)
+        {
+          currentPosition.value.int_value = pos;
+          homekit_characteristic_notify(&currentPosition, currentPosition.value);
+        }
         if (positionState.value.int_value != POS_STOPPED)
         {
           positionState.value.int_value = POS_STOPPED;
           homekit_characteristic_notify(&positionState, positionState.value);
         }
       }
+      // Decide hold strategy
+      if (HOLD_TORQUE_MS == 0)
+      {
+        // Immediate disable
+        stepper.disableOutputs();
+        stoppedAt = 0;
+        holdingActive = false;
+      }
+      else if (HOLD_TORQUE_MS < 0)
+      {
+        // Infinite hold: ensure outputs are ON
+        stepper.enableOutputs();
+        holdingActive = true;
+        // stoppedAt retained only for reference; never auto-disable
+      }
+      else
+      {
+        // Timed hold: keep outputs enabled until timeout
+        stepper.enableOutputs();
+        holdingActive = true;
+      }
     }
+    return; // wait for hold interval if configured
+  }
+
+  // If we are stopped and holding torque, check timeout (skip if infinite hold)
+  if (holdingActive && stoppedAt != 0 && HOLD_TORQUE_MS > 0 && (millis() - stoppedAt) >= (uint32_t)HOLD_TORQUE_MS)
+  {
+    stepper.disableOutputs();
+    stoppedAt = 0; // done holding
+    holdingActive = false;
   }
 }
 
@@ -241,37 +300,27 @@ bool loadConfig()
   if (!helper.loadconfig())
     return false;
 
-  JsonVariant json = helper.getconfig();
-  state.currentStep = json["currentStep"];
-  state.maxSteps = json["maxSteps"];
-  targetPosition.value.int_value = json["targetPositionValue"];
+  JsonObjectConst json = helper.getconfig();
+  state.currentStep = json["currentStep"] | 0;
+  state.maxSteps = json["maxSteps"] | 0;
+  targetPosition.value.int_value = json["targetPositionValue"] | 0;
   // Load raw calibration points if present
-  JsonVariant v;
-  v = json["rawUpStep"];
-  if (v)
-    state.upStep = (int)v;
-  else
-    state.upStep = 0;
-  v = json["rawDownStep"];
-  if (v)
-    state.downStep = (int)v;
-  else
-    state.downStep = 0;
+  state.upStep = json["rawUpStep"] | 0;
+  state.downStep = json["rawDownStep"] | 0;
   currentPosition.value.int_value = getCurrentPosition();
   return true;
 }
 
 bool saveConfig()
 {
-  DynamicJsonBuffer jsonBuffer(500);
-  JsonObject &json = jsonBuffer.createObject();
-  json["currentStep"] = state.currentStep;
-  json["maxSteps"] = state.maxSteps;
-  json["targetPositionValue"] = targetPosition.value.int_value;
+  JsonDocument doc;
+  doc["currentStep"] = state.currentStep;
+  doc["maxSteps"] = state.maxSteps;
+  doc["targetPositionValue"] = targetPosition.value.int_value;
   // store raw calibration points if present
-  json["rawUpStep"] = state.upStep;
-  json["rawDownStep"] = state.downStep;
-  return helper.saveconfig(json);
+  doc["rawUpStep"] = state.upStep;
+  doc["rawDownStep"] = state.downStep;
+  return helper.saveconfig(doc);
 }
 
 void enableCalibrationMode()
@@ -306,6 +355,8 @@ void shadesControl()
   // Command stepper to the target (run() moves it)
   if (targetStep != stepper.targetPosition())
   {
+    // Ensure coils are energized before a new move
+    stepper.enableOutputs();
     stepper.moveTo(targetStep);
     state.lastMovementTime = millis();
     // User-facing feedback for Normal mode moves
@@ -340,6 +391,12 @@ void shadesControl()
     positionState.value.int_value = POS_STOPPED;
     homekit_characteristic_notify(&positionState, positionState.value);
     state.lastMessage = F("Stopped");
+    // Safety: ensure coils are de-energized when we report STOPPED
+    // Disable only if we are not intentionally holding torque
+    if (HOLD_TORQUE_MS == 0)
+    {
+      stepper.disableOutputs();
+    }
   }
 }
 

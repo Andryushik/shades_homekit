@@ -1,6 +1,7 @@
 #include "web.h"
 #include <Arduino.h>
 #include <ESP8266WebServer.h>
+#include <ArduinoJson.h>
 #include "Globals.h"
 #include "Buttons.h"
 #include <AccelStepper.h>
@@ -223,29 +224,16 @@ static void handleFactoryPost()
 
 static void handleStatus()
 {
-  String json = F("{");
-  json += F("\"currentStep\":");
-  json += String(state.currentStep);
-  json += F(",\"maxSteps\":");
-  json += String(state.maxSteps);
-  json += F(",\"mode\":\"");
-  json += (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL";
-  json += F("\",");
-  json += F("\"position\":");
-  json += String(getCurrentPosition());
-  json += F(",\"msg\":\"");
-  // Escape quotes minimally (replace ") for safety; expect simple messages
-  String esc = state.lastMessage;
-  // Minimal escaping to keep JSON valid
-  esc.replace("\\", "\\\\"); // backslash -> escaped backslash
-  esc.replace('\n', ' ');
-  esc.replace('\r', ' ');
-  esc.replace('"', ' ');
-  json += esc;
-  json += F("\"");
-  json += F("}");
+  JsonDocument doc;
+  doc["currentStep"] = state.currentStep;
+  doc["maxSteps"] = state.maxSteps;
+  doc["mode"] = (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL";
+  doc["position"] = getCurrentPosition();
+  doc["msg"] = state.lastMessage;
+  String out;
+  serializeJson(doc, out);
   server.sendHeader("Cache-Control", "no-cache");
-  server.send(200, "application/json", json);
+  server.send(200, "application/json", out);
 }
 
 void webBegin()
