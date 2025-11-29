@@ -1,6 +1,9 @@
 #include "ota.h"
 
+// Enable OTA by default when building/running from this tree.
+#define ENABLE_OTA
 #ifdef ENABLE_OTA
+
 #include <ArduinoOTA.h>
 #include <AccelStepper.h>
 #include "Globals.h"

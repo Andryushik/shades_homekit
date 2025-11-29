@@ -61,20 +61,20 @@ void shadesControl();
 
 void setup()
 {
+  Serial.begin(115200);
+  SERIAL_DEBUG_INIT();
+  DPRINTLN("=== TEST BUILD " __DATE__ " " __TIME__ " ===");
+
   pinMode(LED_PIN, OUTPUT);
   // BUTTON_MAIN (D0) not used; MAIN is simulated by both UP+DOWN pressed
   pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
 
-  Serial.begin(115200);
-  SERIAL_DEBUG_INIT();
   state.startupTime = millis();
 
   loadConfig();
   if (state.maxSteps == 0)
-  {
     enableCalibrationMode();
-  }
 
   // Initialize stepper with normal motion profile
   stepper.setMaxSpeed(SPEED_MAX);
@@ -86,12 +86,10 @@ void setup()
   wifiConnect();
   // Print chosen hostname and IP for quick verification
   Serial.printf("Host: %s, IP: %s\n", WiFi.hostname().c_str(), WiFi.localIP().toString().c_str());
+
   homekitSetup();
   OTA::setup();
-  // initialize buttons
   Buttons::init();
-
-  // start web UI
   webBegin();
 }
 

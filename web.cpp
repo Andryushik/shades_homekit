@@ -29,7 +29,7 @@ static void handleRoot()
   String page;
   page.reserve(2048);
   page += F("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Shades</title><style>body{font-family:sans-serif;margin:16px}h2,h3,p{margin:6px}button{margin:6px;padding:10px 14px}code{background:#eee;padding:2px 4px;border-radius:3px}.blink{animation:b .8s steps(2) infinite}@keyframes b{50%{opacity:.35}}</style></head><body>");
-  page += F("<h2>Roller Shades Controller</h2>");
+  page += F("<h2>Roller Shades Remote Controller</h2>");
   page += F("<p>Mode: <b><span id='mode'>");
   page += (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL";
   page += F("</span></b></p>");
@@ -79,6 +79,7 @@ static void handleCalStart()
 {
   if (state.currentMode != CALIBRATE)
   {
+    DPRINTLN("WEB: Start Calibration requested");
     enableCalibrationMode();
   }
   redirectRoot();
@@ -90,6 +91,7 @@ static void handleCalStop()
   state.calJogDir = 0;
   if (state.currentMode == CALIBRATE)
   {
+    DPRINTLN("WEB: Exit Calibration requested");
     // Return to NORMAL without saving
     state.currentMode = NORMAL;
   }
@@ -103,11 +105,13 @@ static void handleUpStart()
     // Toggle jog behavior in calibration mode
     if (state.calJogDir == -1)
     {
+      DPRINTLN("WEB: Calibration jog UP stop");
       state.calJogDir = 0;
       state.lastMessage = F("Stopped");
     }
     else
     {
+      DPRINTLN("WEB: Calibration jog UP start");
       state.calJogDir = -1; // up
       state.lastMessage = F("Moving UP");
     }
@@ -116,6 +120,7 @@ static void handleUpStart()
   {
     if (targetPosition.value.int_value != 100)
     {
+      DPRINTLN("WEB: Move to 100% (UP)");
       targetPosition.value.int_value = 100;
       homekit_characteristic_notify(&targetPosition, targetPosition.value);
     }
@@ -130,11 +135,13 @@ static void handleDownStart()
     // Toggle jog behavior in calibration mode
     if (state.calJogDir == 1)
     {
+      DPRINTLN("WEB: Calibration jog DOWN stop");
       state.calJogDir = 0;
       state.lastMessage = F("Stopped");
     }
     else
     {
+      DPRINTLN("WEB: Calibration jog DOWN start");
       state.calJogDir = 1; // down
       state.lastMessage = F("Moving DOWN");
     }
@@ -143,6 +150,7 @@ static void handleDownStart()
   {
     if (targetPosition.value.int_value != 0)
     {
+      DPRINTLN("WEB: Move to 0% (DOWN)");
       targetPosition.value.int_value = 0;
       homekit_characteristic_notify(&targetPosition, targetPosition.value);
     }
@@ -154,12 +162,14 @@ static void handleHoldStop()
 {
   if (state.currentMode == CALIBRATE)
   {
+    DPRINTLN("WEB: Calibration jog STOP");
     // Stop calibration jogging
     state.calJogDir = 0;
     state.lastMessage = F("Stopped");
   }
   else
   {
+    DPRINTLN("WEB: STOP command");
     int newTarget = getCurrentPosition();
     targetPosition.value.int_value = newTarget;
     homekit_characteristic_notify(&targetPosition, targetPosition.value);
@@ -177,6 +187,7 @@ static void handleSaveTop()
 {
   if (state.currentMode == CALIBRATE)
   {
+    DPRINTLN("WEB: Save TOP position");
     Buttons::calibrationSaveTop();
   }
   redirectRoot();
@@ -186,6 +197,7 @@ static void handleSaveBottom()
 {
   if (state.currentMode == CALIBRATE)
   {
+    DPRINTLN("WEB: Save BOTTOM position");
     Buttons::calibrationSaveBottom();
   }
   redirectRoot();
@@ -193,6 +205,7 @@ static void handleSaveBottom()
 
 static void handleReboot()
 {
+  DPRINTLN("WEB: Safe Reboot requested");
   int currentPercent = getCurrentPosition();
   targetPosition.value.int_value = currentPercent;
   currentPosition.value.int_value = currentPercent;
@@ -215,6 +228,7 @@ static void handleReboot()
 
 static void handleFactoryPost()
 {
+  DPRINTLN("WEB: Factory Reset requested");
   server.send(200, "text/plain", "Factory resetting...\n");
   delay(200);
   reset();

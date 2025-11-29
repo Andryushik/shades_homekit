@@ -107,36 +107,20 @@ You can reach the web UI either by entering the device IP in your browser (for e
 
 ### OTA (wireless firmware updates)
 
-OTA is implemented via ArduinoOTA in `ota.cpp` and is controlled by a compile‑time flag.
+OTA is implemented via ArduinoOTA in `ota.cpp`. First time (or after disabling OTA), upload by USB/serial:
 
-- Enable OTA at build time by defining `ENABLE_OTA`:
+The OTA hostname is `192.168.x.y` and the OTA password is 28142814 (configured in `ota.cpp`). To build a lean image without OTA, simply comment out the `#define ENABLE_OTA` line in `ota.cpp` and rebuild.
 
-```bash
-arduino-cli compile \
-  --fqbn esp8266:esp8266:nodemcuv2 \
-  --build-property build.extra_flags="-DENABLE_OTA" \
-  /path/to/shades_homekit
+### Debugging (short)
+
+- Serial debug: firmware logs at `115200` baud. Open your serial monitor after the device finishes booting (avoid opening during upload — initial output contains binary data).
+
+- Build with project debug enabled:
+
+```zsh
+arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 \
+  --build-property build.extra_flags="-DSHADES_DEBUG" .
 ```
-
-- First time (or after disabling OTA), upload by USB/serial:
-
-```bash
-arduino-cli upload \
-  --fqbn esp8266:esp8266:nodemcuv2 \
-  -p /dev/ttyUSB0        # your serial port
-  /path/to/shades_homekit
-```
-
-- Subsequent wireless uploads (same Wi‑Fi network):
-
-```bash
-arduino-cli upload \
-  --fqbn esp8266:esp8266:nodemcuv2 \
-  --port 192.168.x.y \  # your device IP address
-  /path/to/shades_homekit
-```
-
-The OTA hostname is `192.168.x.y` and the OTA password is 28142814 (configured in `ota.cpp`). To build a lean image without OTA, simply omit the `-DENABLE_OTA` flag when compiling.
 
 ## Inspiration
 

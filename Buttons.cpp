@@ -126,6 +126,7 @@ namespace Buttons
       {
         state.mainLong10Handled = true;
         state.mainLong5Handled = true; // suppress 5s action
+        DPRINTLN("MAIN long press: FACTORY RESET (10s)");
         reset();
         delay(300);
         ESP.restart();
@@ -133,6 +134,7 @@ namespace Buttons
       else if (dur >= 5000 && !state.mainLong5Handled && state.currentMode != CALIBRATE)
       {
         state.mainLong5Handled = true;
+        DPRINTLN("MAIN long press: ENTER CALIBRATION (5s)");
         enableCalibrationMode();
       }
     }
@@ -262,6 +264,7 @@ namespace Buttons
     state.currentCalibrationStep = UP_KNOWN;
     DPRINT("Calibration: saved TOP raw position = ");
     DPRINTLN(state.upStep);
+    DPRINTLN("Calibration: MAIN short press (save TOP)");
     state.lastMessage = String("Saved top position (step ") + state.upStep + ")";
     state.confirmBlinkActive = true;
     state.exitCalibrationAfterBlink = false;
@@ -274,6 +277,7 @@ namespace Buttons
     state.downStep = stepper.currentPosition();
     DPRINT("Calibration: saved BOTTOM raw position = ");
     DPRINTLN(state.downStep);
+    DPRINTLN("Calibration: MAIN short press (save BOTTOM)");
     int travel = abs(state.downStep - state.upStep);
     DPRINT("Calibration: measured travel = ");
     DPRINTLN(travel);

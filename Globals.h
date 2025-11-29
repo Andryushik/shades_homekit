@@ -4,10 +4,11 @@
 #include <Arduino.h>
 
 /*
- Debug logging helpers: define `DEBUG` to enable serial debug output
- (add `#define DEBUG` above this block).
+ Debug logging helpers: define `SHADES_DEBUG` to enable serial debug output
+ (add `-DSHADES_DEBUG` to compiler flags to enable; this avoids colliding with
+ other libraries that use `DEBUG`).
 */
-#ifdef DEBUG
+#ifdef SHADES_DEBUG
 #define DPRINT(...) Serial.print(__VA_ARGS__)
 #define DPRINTLN(...) Serial.println(__VA_ARGS__)
 #define DPRINTF(...) Serial.printf(__VA_ARGS__)

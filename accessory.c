@@ -12,9 +12,8 @@ homekit_characteristic_t positionState = HOMEKIT_CHARACTERISTIC_(POSITION_STATE,
 homekit_accessory_t *accessories[] = {
     HOMEKIT_ACCESSORY(.id=1, .category=homekit_accessory_category_window_covering, .services=(homekit_service_t*[]) {
           // Accessory Information: overall accessory metadata
-          // Use a compact accessory NAME so HomeKit publishes a DNS-safe host (no spaces)
           HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics=(homekit_characteristic_t*[]) {
-              HOMEKIT_CHARACTERISTIC(NAME, "roller_shades"),
+              HOMEKIT_CHARACTERISTIC(NAME, "Roller Shades"),
             HOMEKIT_CHARACTERISTIC(MANUFACTURER, "Andrei"),
             HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "RB-8266-0001"),
             HOMEKIT_CHARACTERISTIC(MODEL, "RB-8266-28BYJ"),
