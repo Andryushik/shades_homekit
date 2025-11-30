@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <arduino_homekit_server.h>
-#include "ota.h"
 #include "Helper.h"
 #include "pins.h"
 #include "wifi.h"
@@ -9,13 +8,10 @@
 #include "Globals.h"
 #include "web.h"
 
-// OTA Password (change this value if you want different password)
-#define OTA_PASSWORD "28142814"
-
 // Speed/settings constants
-const float SPEED_MAX = 450.0f; // steps/s
-const float ACCEL = 150.0f;     // steps/s^2
-const float CAL_SPEED = 150.0f; // steps/s during calibration (continuous)
+const float SPEED_MAX = 700.0f; // steps/s
+const float ACCEL = 250.0f;     // steps/s^2
+const float CAL_SPEED = 250.0f; // steps/s during calibration (continuous)
 // HOLD_TORQUE_MS semantics:
 //   0   -> disable coils immediately after stop
 //  >0   -> keep coils energized for that many milliseconds, then disable
@@ -25,8 +21,6 @@ const int MIN_TRAVEL = 4096;         // minimum calibration travel 1 full rotati
 
 // 28BYJ-48 via ULN2003 using HALF4WIRE; coil order IN1, IN3, IN2, IN4
 AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
-
-// Buttons are handled via the `Buttons` namespace (see Buttons.cpp)
 
 Helper helper;
 
@@ -106,7 +100,6 @@ void setup()
   Serial.printf("Host: %s, IP: %s\n", WiFi.hostname().c_str(), WiFi.localIP().toString().c_str());
 
   homekitSetup();
-  OTA::setup();
   Buttons::init();
   webBegin();
 }
@@ -114,35 +107,33 @@ void setup()
 void loop()
 {
   static bool wasCalibrating = false;
-  // Buttons::loop() processes input/events
+  static unsigned long lastHousekeeping = 0;
+  const unsigned long HOUSEKEEP_MS = 100; // run housekeeping less frequently
 
+  // 1. Buttons (highest priority)
   Buttons::loop();
-  // Command new motion early so run()/runSpeed() executes with outputs already enabled
+
+  // 2. Update target/commands (HomeKit/web may have changed the target)
   shadesControl();
-  properLedDisplay();
-  webLoop();
-  // Calibration: use continuous runSpeed() at constant CAL_SPEED
+
+  // 3. MOTOR - must be called every loop
   if (state.currentMode == CALIBRATE)
   {
+    // calibration: continuous speed control handled elsewhere via calJogDir/state
     wasCalibrating = true;
 
     bool up = (state.calJogDir < 0);
     bool down = (state.calJogDir > 0);
-    // Wait for initial release to avoid motion from buttons held during entry
     if (state.calRequireRelease)
     {
       if (!up && !down)
-      {
         state.calRequireRelease = false;
-      }
     }
 
     if (!state.calRequireRelease)
     {
-      // Continuous speed control: call setSpeed() then runSpeed() repeatedly
       if (up && !down)
       {
-        // negative speed moves toward top (smaller step numbers)
         stepper.setSpeed(-CAL_SPEED);
         stepper.runSpeed();
         state.lastMovementTime = millis();
@@ -155,15 +146,12 @@ void loop()
       }
       else
       {
-        // no buttons pressed during calibration: explicitly clear speed to avoid
-        // leaving a stale speed value. We don't call runSpeed() so no stepping.
         stepper.setSpeed(0.0f);
       }
     }
   }
   else
   {
-    // Restoring normal motion profile after leaving calibration
     if (wasCalibrating)
     {
       stepper.setAcceleration(ACCEL);
@@ -174,23 +162,32 @@ void loop()
 
     if (stepper.distanceToGo() != 0)
     {
-      // Ensure outputs are enabled if a move is in progress (safety in case of external disable)
-      if (HOLD_TORQUE_MS == 0 || HOLD_TORQUE_MS > 0) // all finite modes
-        stepper.enableOutputs();
+      stepper.enableOutputs();
       state.lastMovementTime = millis();
     }
     stepper.run();
   }
 
-  // Keep software step counter in sync with the stepper driver
+  // 4. State sync - ensure position reflects current motor position
   state.currentStep = stepper.currentPosition();
 
-  // Handle post-run housekeeping (notifications & power management)
-  handleEngineControllerActivity();
+  // 5. HomeKit - call loop/notifications after position update
   homekitLoop();
-  OTA::loop();
 
-  // Yield instead of fixed delay to keep WiFi stack & watchdog happy with minimal jitter
+  // 6. Non-blocking UI tasks
+  properLedDisplay();
+
+  // 7. Housekeeping - run less frequently to avoid frequent SPIFFS/heavy ops
+  if (millis() - lastHousekeeping >= HOUSEKEEP_MS)
+  {
+    handleEngineControllerActivity();
+    lastHousekeeping = millis();
+  }
+
+  // 8. Web - run at the end of the loop (may be heavier)
+  webLoop();
+
+  // 9. Yield
   yield();
 }
 
