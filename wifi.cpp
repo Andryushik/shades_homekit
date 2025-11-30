@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "Globals.h"
 #include <WiFiManager.h>
+#include <ESP8266mDNS.h>
 
 void wifiConnect()
 {

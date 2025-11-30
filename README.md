@@ -101,21 +101,30 @@ You can reach the web UI either by entering the device IP in your browser (for e
 ## Software & Build
 
 - Board: `esp8266:esp8266:nodemcuv2`
-- Libraries: WiFiManager, ArduinoJson v5, AccelStepper, EasyButton, HomeKit‑ESP8266, SPIFFS/FS.
+- Libraries: WiFiManager, ArduinoJson v7, AccelStepper, EasyButton, HomeKit‑ESP8266, SPIFFS/FS.
 - Serial: 115200 baud.
 - Ensure SPIFFS formatted/available on first flash.
 
+### Constants & Configuration
+
+Timing constants (configurable in `Globals.h`):
+
+- `BUTTON_IGNORE_WINDOW_MS = 10000` (10s button ignore after boot)
+- `MAIN_LONG_PRESS_CAL_MS = 5000` (5s press for calibration mode)
+- `MAIN_LONG_PRESS_RESET_MS = 10000` (10s press for factory reset)
+- `PRESET_DEFER_WINDOW_MS = 150` (debounce for preset actions)
+- `LED_BLINK_INTERVAL_MS = 400` (LED blink rate)
+
 ### OTA (wireless firmware updates)
 
-OTA is implemented via ArduinoOTA in `ota.cpp`. First time (or after disabling OTA), upload by USB/serial:
+OTA is implemented via ArduinoOTA in `ota.cpp`. Default password: 28142814 (can be configured via config).
 
-The OTA hostname is `192.168.x.y` and the OTA password is 28142814 (configured in `ota.cpp`). To build a lean image without OTA, simply comment out the `#define ENABLE_OTA` line in `ota.cpp` and rebuild.
+To build a lean image without OTA, comment out `#define ENABLE_OTA` in `ota.cpp` and rebuild.
 
-### Debugging (short)
+### Debugging
 
-- Serial debug: firmware logs at `115200` baud. Open your serial monitor after the device finishes booting (avoid opening during upload — initial output contains binary data).
-
-- Build with project debug enabled:
+- Serial debug: 115200 baud (enable with `-DSHADES_DEBUG` flag).
+- Build with debug:
 
 ```zsh
 arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 \

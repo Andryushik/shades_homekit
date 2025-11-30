@@ -10,9 +10,9 @@
 #include "web.h"
 
 // Speed/settings constants
-const float SPEED_MAX = 600.0f; // steps/s
+const float SPEED_MAX = 450.0f; // steps/s
 const float ACCEL = 150.0f;     // steps/s^2
-const float CAL_SPEED = 200.0f; // steps/s during calibration (continuous)
+const float CAL_SPEED = 150.0f; // steps/s during calibration (continuous)
 // HOLD_TORQUE_MS semantics:
 //   0   -> disable coils immediately after stop
 //  >0   -> keep coils energized for that many milliseconds, then disable
@@ -28,10 +28,25 @@ AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
 Helper helper;
 
 // Centralized runtime state (see `Globals.h` for field docs)
-ShadesState state = {NORMAL, NONE, false, false,
-                     0, 0, 0, 0,
-                     0, false, false, false, 0,
-                     false, false, 0, 0, String()};
+ShadesState state = {
+    .currentMode = NORMAL,
+    .currentCalibrationStep = NONE,
+    .confirmBlinkActive = false,
+    .exitCalibrationAfterBlink = false,
+    .currentStep = 0,
+    .maxSteps = 0,
+    .upStep = 0,
+    .downStep = 0,
+    .calJogDir = 0,
+    .calRequireRelease = false,
+    .holdingActive = false,
+    .lastBothPressed = false,
+    .bothPressStart = 0,
+    .mainLong5Handled = false,
+    .mainLong10Handled = false,
+    .startupTime = 0,
+    .lastMovementTime = 0,
+    .lastMessage = String()};
 
 // HomeKit characteristics (provided by accessory.c)
 extern "C" homekit_characteristic_t currentPosition;
@@ -189,7 +204,7 @@ void properLedDisplay()
     const uint32_t t = millis();
     if (t > nextLedMillis)
     {
-      nextLedMillis = t + 400;
+      nextLedMillis = t + LED_BLINK_INTERVAL_MS;
       digitalWrite(LED_PIN, !digitalRead(LED_PIN));
     }
     return;
@@ -229,7 +244,11 @@ void handleEngineControllerActivity()
     state.holdingActive = false;
     if (state.currentMode != CALIBRATE)
     {
-      saveConfig();
+      if (!saveConfig())
+      {
+        DPRINTLN("Warning: Failed to save config after movement");
+        state.lastMessage = F("Save config failed");
+      }
       if (state.maxSteps != 0)
       {
         int pos = getCurrentPosition();

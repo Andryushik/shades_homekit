@@ -46,6 +46,13 @@ extern const float SPEED_MAX;
 extern const float ACCEL;
 extern const int MIN_TRAVEL; // minimum required calibration travel in steps
 
+// Timing constants (all in milliseconds)
+const uint32_t BUTTON_IGNORE_WINDOW_MS = 10000;  // Ignore button input for 10s after boot (prevents accidental triggers)
+const uint32_t MAIN_LONG_PRESS_CAL_MS = 5000;    // 5s long press (UP+DOWN) to enter calibration mode
+const uint32_t MAIN_LONG_PRESS_RESET_MS = 10000; // 10s long press (UP+DOWN) for factory reset
+const uint32_t PRESET_DEFER_WINDOW_MS = 150;     // Window to detect MAIN press after single button (debounce)
+const uint32_t LED_BLINK_INTERVAL_MS = 400;      // LED blink interval during calibration/unconfigured state
+
 // Shared runtime state for the shades controller
 struct ShadesState
 {

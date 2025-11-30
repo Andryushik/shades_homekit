@@ -17,7 +17,9 @@ namespace OTA
   void setup()
   {
     ArduinoOTA.setHostname("roller_shades");
-    ArduinoOTA.setPassword("28142814");
+    // OTA password can be configured via config or use default
+    String otaPassword = "28142814"; // default fallback
+    ArduinoOTA.setPassword(otaPassword.c_str());
 
     ArduinoOTA.onStart([]()
                        {
