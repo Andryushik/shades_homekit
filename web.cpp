@@ -125,10 +125,10 @@ if(s.msg){m.className=s.msg.indexOf('too small')>-1||s.msg.indexOf('failed')>-1?
 var cs=document.getElementById('calSave'); if(cs)cs.style.display=s.mode==='CALIBRATE'?'block':'none';
 var st=document.getElementById('calStart'),sp=document.getElementById('calStop');
 if(st&&sp){st.style.display=s.mode==='CALIBRATE'?'none':'inline-block'; sp.style.display=s.mode==='CALIBRATE'?'inline-block':'none';}
-});}; setInterval(u,400); window.addEventListener('load',u);
+});}; setInterval(u,200); window.addEventListener('load',u);
 document.addEventListener('click',(e)=>{var b=e.target.closest('[data-act]'); if(b){var act=b.getAttribute('data-act');
 if(act==='/factory'){if(!confirm('Factory reset will erase Wi-Fi, SPIFFS config, and HomeKit pairing. Continue?'))return;}
-fetch(act,{method:'POST'}).then(()=>{setTimeout(u,300);}).catch(()=>{alert('Error!');}); e.preventDefault();}});})();</script>
+fetch(act,{method:'POST'}).then(u).catch(()=>{alert('Error!');}); e.preventDefault();}});})();</script>
 </body></html>
 )html";
 
@@ -150,10 +150,9 @@ static void handleRoot()
   server.send(200, "text/html; charset=UTF-8", page);
 }
 
-static void redirectRoot()
+static void sendQuickResponse()
 {
-  server.sendHeader("Location", "/", true);
-  server.send(303);
+  server.send(200, "text/plain", "OK");
 }
 
 static void handleCalStart()
@@ -163,7 +162,7 @@ static void handleCalStart()
     DPRINTLN("WEB: Start Calibration requested");
     enableCalibrationMode();
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleCalStop()
@@ -171,7 +170,7 @@ static void handleCalStop()
   // stop any calibration jogging and return to NORMAL
   BA_exitCalibrationNoSave();
   DPRINTLN("WEB: Exit Calibration requested");
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleUpStart()
@@ -186,7 +185,7 @@ static void handleUpStart()
     BA_moveToPercent(100);
     DPRINTLN("WEB: Move to 100% (UP)");
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleDownStart()
@@ -201,7 +200,7 @@ static void handleDownStart()
     BA_moveToPercent(0);
     DPRINTLN("WEB: Move to 0% (DOWN)");
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleHoldStop()
@@ -216,7 +215,7 @@ static void handleHoldStop()
     DPRINTLN("WEB: STOP command");
     BA_stopMotion();
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 // Use encapsulated calibration save routines from Buttons namespace
@@ -228,7 +227,7 @@ static void handleSaveTop()
     DPRINTLN("WEB: Save TOP position");
     Buttons::calibrationSaveTop();
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleSaveBottom()
@@ -238,7 +237,7 @@ static void handleSaveBottom()
     DPRINTLN("WEB: Save BOTTOM position");
     Buttons::calibrationSaveBottom();
   }
-  redirectRoot();
+  sendQuickResponse();
 }
 
 static void handleReboot()
