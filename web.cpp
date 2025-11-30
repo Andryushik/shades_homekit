@@ -27,35 +27,108 @@ static ESP8266WebServer server(80);
 
 // Use PROGMEM for large HTML content to save RAM (global scope)
 const char HTML_PAGE[] PROGMEM = R"html(
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shades</title><style>body{font-family:sans-serif;margin:16px}h2,h3,p{margin:6px}button{margin:6px;padding:10px 14px}code{background:#eee;padding:2px 4px;border-radius:3px}.blink{animation:b .8s steps(2) infinite}@keyframes b{50%{opacity:.35}}</style></head><body>
-<h2>Roller Shades Remote Controller</h2>
-<p>Mode: <b><span id='mode'>MODE_PLACEHOLDER</span></b></p>
-<p>Position (open): <code id='pos'>POS_PLACEHOLDER</code>%</p>
-<p>Current step: <code id='cur'>CUR_PLACEHOLDER</code> / Max: <code id='max'>MAX_PLACEHOLDER</code></p>
-<p id='msg' style='font-weight:600'></p>
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shades</title><style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;margin:0;padding:20px;background:#f5f5f5;color:#333}
+.container{max-width:400px;margin:0 auto}
+.card{background:white;border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+h1{margin:0 0 16px 0;font-size:24px;color:#2c3e50;text-align:center}
+.status{margin:16px 0;text-align:center}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:14px;font-weight:500}
+.badge-normal{background:#27ae60;color:white}
+.badge-calibrate{background:#f39c12;color:white;animation:pulse 1s infinite}
+.progress-bar{background:#ecf0f1;border-radius:8px;height:24px;margin:8px 0;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#3498db,#2ecc71);transition:width 0.3s ease;width:POS_PLACEHOLDER%}
+.progress-text{text-align:center;font-weight:600;color:#2c3e50;margin:8px 0}
+.btn-row{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}
+.btn{flex:1;min-width:80px;padding:12px 16px;border:none;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;transition:all 0.2s ease;text-align:center;background:#3498db;color:white}
+.btn:hover{background:#2980b9;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-stop{background:#e74c3c}
+.btn-stop:hover{background:#c0392b}
+.btn-secondary{background:#95a5a6}
+.btn-secondary:hover{background:#7f8c8d}
+.btn-danger{background:#e74c3c}
+.btn-danger:hover{background:#c0392b}
+.btn-success{background:#27ae60}
+.btn-success:hover{background:#229954}
+.btn-cal{background:#f39c12}
+.btn-cal:hover{background:#e67e22}
+.msg{margin:12px 0;padding:8px 12px;border-radius:6px;text-align:center;font-weight:500}
+.msg-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+.msg-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+.blink{animation:pulse 1s infinite}
+@keyframes pulse{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
+@media(max-width:480px){.btn{min-width:70px;font-size:14px;padding:10px 12px}}
+</style></head><body>
+<div class="container">
+<div class="card">
+<h1>Roller Shades</h1>
 
-<hr><h3>Control</h3>
-<div>
-<button class='act' data-act='/cal/up/start'>Up (open)</button>
-<button class='act' data-act='/cal/down/start'>Down (close)</button>
-<button class='act' id='btnStop' data-act='/cal/hold/stop'>Stop</button>
+<div class="status" style="margin:8px 0;font-size:12px;text-align:center">
+<span class="badge MODE_CLASS" id='mode'>MODE_PLACEHOLDER</span>
 </div>
 
-<hr><h3>Calibration</h3>
-<div>
-<button class='act' id='calStart' data-act='/cal/start'>Start Calibration</button>
-<button class='act' id='calStop' data-act='/cal/stop' style="display:none">Exit Calibration</button>
+<div class="progress-bar">
+<div class="progress-fill" id="progress-fill" style="width:POS_PLACEHOLDER%"></div>
 </div>
-<div id='calSave' style="margin-top:6px;display:none">
-<button class='act' data-act='/cal/saveTop'>Save Top Position</button>
-<button class='act' data-act='/cal/saveBottom'>Save Bottom Position</button>
+<div class="progress-text">Position: <strong id='pos'>POS_PLACEHOLDER</strong>%</div>
+
+<div class="msg" id="msg-container" style="display:none;margin:8px 0;"></div>
 </div>
 
-<hr><div>
-<button class='act' data-act='/reboot'>Safe Reboot</button>
-<button class='act' data-act='/factory' style="background:#b00020;color:#fff">Factory Reset</button>
+<div class="card">
+<h3>🎛️ Control</h3>
+<div class="btn-row">
+<button class="btn btn-success" data-act='/cal/up/start'>⬆️ Open</button>
+<button class="btn btn-secondary" data-act='/cal/down/start'>⬇️ Close</button>
+<button class="btn btn-stop" id='btnStop' data-act='/cal/hold/stop'>⏹️ Stop</button>
 </div>
-<script>(()=>{let prevStep=null;const u=()=>{fetch('/status').then(r=>r.json()).then(s=>{var el; if((el=document.getElementById('cur')))el.textContent=s.currentStep; if((el=document.getElementById('max')))el.textContent=s.maxSteps; if((el=document.getElementById('mode'))){el.textContent=s.mode; if(s.mode==='CALIBRATE'){el.classList.add('blink');} else {el.classList.remove('blink');}} if((el=document.getElementById('pos')))el.textContent=s.position; var moving=!!s.moving; prevStep=s.currentStep; var sb=document.getElementById('btnStop'); if(sb){ if(moving){sb.classList.add('blink');} else {sb.classList.remove('blink');}} var m=document.getElementById('msg'); if(m){ m.textContent=s.msg||''; if(s.msg && s.msg.indexOf('too small')>-1){ m.style.color='#b00020'; } else if(s.msg){ m.style.color='#036b00'; } else { m.style.color=''; } } var cs=document.getElementById('calSave'); if(cs){ if(s.mode==='CALIBRATE'){ cs.style.display='block'; } else { cs.style.display='none'; } } var st=document.getElementById('calStart'), sp=document.getElementById('calStop'); if(st&&sp){ if(s.mode==='CALIBRATE'){ st.style.display='none'; sp.style.display='inline-block'; } else { st.style.display='inline-block'; sp.style.display='none'; } } });}; setInterval(u,400); window.addEventListener('load',u); document.addEventListener('click',(e)=>{ var b=e.target; if(b.classList && b.classList.contains('act')){ var act=b.getAttribute('data-act'); if(act==='/factory'){ if(!confirm('Factory reset will erase Wi-Fi, SPIFFS config, and HomeKit pairing. Continue?')) return; } fetch(act,{method:'POST'}).then(()=>{ setTimeout(u,300); }); e.preventDefault(); } });})();</script>
+</div>
+
+<div class="card">
+<h3>⚙️ Calibration</h3>
+<div class="btn-row">
+<button class="btn btn-cal" id='calStart' data-act='/cal/start'>▶️ Start</button>
+<button class="btn btn-secondary" id='calStop' data-act='/cal/stop' style="display:none">⏹️ Exit</button>
+</div>
+<div id='calSave' style="display:none;margin-top:12px">
+<div class="btn-row">
+<button class="btn btn-success" data-act='/cal/saveTop'>📍 Save Top</button>
+<button class="btn btn-secondary" data-act='/cal/saveBottom'>📍 Save Bottom</button>
+</div>
+</div>
+<div style="margin-top:12px;font-size:11px;color:#666;text-align:center">
+Step: <code id='cur'>CUR_PLACEHOLDER</code> / <code id='max'>MAX_PLACEHOLDER</code>
+</div>
+</div>
+
+<div class="card">
+<h3>🔧 System</h3>
+<div class="btn-row">
+<button class="btn btn-secondary" data-act='/reboot'>🔄 Reboot</button>
+<button class="btn btn-danger" data-act='/factory'>⚠️ Reset</button>
+</div>
+</div>
+</div>
+
+<script>(()=>{let prevStep=null;const u=()=>{fetch('/status').then(r=>r.json()).then(s=>{var el,pf,m;
+if((el=document.getElementById('cur')))el.textContent=s.currentStep;
+if((el=document.getElementById('max')))el.textContent=s.maxSteps;
+if((el=document.getElementById('pos')))el.textContent=s.position;
+if((pf=document.getElementById('progress-fill')))pf.style.width=s.position+'%';
+if((el=document.getElementById('mode'))){el.textContent=s.mode; el.className='badge '+(s.mode==='CALIBRATE'?'badge-calibrate':'badge-normal');}
+var moving=!!s.moving; prevStep=s.currentStep;
+var sb=document.getElementById('btnStop'); if(sb){sb.classList.toggle('blink',moving);}
+var mc=document.getElementById('msg-container'); var m=mc.querySelector('div')||mc.appendChild(document.createElement('div'));
+m.textContent=s.msg||''; mc.style.display=s.msg?'block':'none';
+if(s.msg){m.className=s.msg.indexOf('too small')>-1||s.msg.indexOf('failed')>-1?'msg msg-error':'msg msg-success';}
+var cs=document.getElementById('calSave'); if(cs)cs.style.display=s.mode==='CALIBRATE'?'block':'none';
+var st=document.getElementById('calStart'),sp=document.getElementById('calStop');
+if(st&&sp){st.style.display=s.mode==='CALIBRATE'?'none':'inline-block'; sp.style.display=s.mode==='CALIBRATE'?'inline-block':'none';}
+});}; setInterval(u,400); window.addEventListener('load',u);
+document.addEventListener('click',(e)=>{var b=e.target.closest('[data-act]'); if(b){var act=b.getAttribute('data-act');
+if(act==='/factory'){if(!confirm('Factory reset will erase Wi-Fi, SPIFFS config, and HomeKit pairing. Continue?'))return;}
+fetch(act,{method:'POST'}).then(()=>{setTimeout(u,300);}).catch(()=>{alert('Error!');}); e.preventDefault();}});})();</script>
 </body></html>
 )html";
 
@@ -64,12 +137,17 @@ static void handleRoot()
   String page;
   page.reserve(1024); // Reduced from 2048
   String htmlStr = FPSTR(HTML_PAGE);
-  htmlStr.replace("MODE_PLACEHOLDER", (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL");
-  htmlStr.replace("POS_PLACEHOLDER", String(getCurrentPosition()));
+  String modeClass = (state.currentMode == CALIBRATE) ? "badge-calibrate" : "badge-normal";
+  String modeText = (state.currentMode == CALIBRATE) ? "CALIBRATE" : "NORMAL";
+  String posStr = String(getCurrentPosition());
+
+  htmlStr.replace("MODE_CLASS", modeClass);
+  htmlStr.replace("MODE_PLACEHOLDER", modeText);
+  htmlStr.replace("POS_PLACEHOLDER", posStr);
   htmlStr.replace("CUR_PLACEHOLDER", String(state.currentStep));
   htmlStr.replace("MAX_PLACEHOLDER", String(state.maxSteps));
   page = htmlStr;
-  server.send(200, "text/html", page);
+  server.send(200, "text/html; charset=UTF-8", page);
 }
 
 static void redirectRoot()

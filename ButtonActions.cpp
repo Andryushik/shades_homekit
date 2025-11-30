@@ -5,6 +5,27 @@
 #include "Globals.h"
 #include "pins.h"
 
+// Access acceleration constant from main TU
+extern const float ACCEL;
+
+// Calculate percentage for any step position (inverse of shadesControl calculation)
+int calculatePercentForStep(long stepPosition)
+{
+  if (state.maxSteps <= 0)
+    return 0;
+
+  // Same formula as getCurrentPosition() but for arbitrary step position
+  long numer = 100L * ((long)state.maxSteps - stepPosition);
+  int percent = (int)((numer + (state.maxSteps / 2)) / (long)state.maxSteps);
+
+  if (percent < 0)
+    percent = 0;
+  if (percent > 100)
+    percent = 100;
+
+  return percent;
+}
+
 // External symbols from main TU and other modules
 extern "C" homekit_characteristic_t currentPosition;
 extern "C" homekit_characteristic_t targetPosition;
@@ -84,13 +105,48 @@ void BA_moveToPercent(int percent)
 
 void BA_stopMotion()
 {
-  int newTarget = getCurrentPosition();
-  targetPosition.value.int_value = newTarget;
-  homekit_characteristic_notify(&targetPosition, targetPosition.value);
-  stepper.moveTo(stepper.currentPosition());
-  positionState.value.int_value = POS_STOPPED;
-  homekit_characteristic_notify(&positionState, positionState.value);
-  state.lastMessage = F("Stopped");
+  // SMOOTH STOP with deceleration - calculate stop position and let motor decelerate naturally
+  long currentPos = stepper.currentPosition();
+  float currentSpeed = stepper.speed();
+  float absSpeed = abs(currentSpeed);
+
+  if (absSpeed > 0.1f) // Only if moving
+  {
+    // Calculate deceleration distance: v² = 2*a*s → s = v²/(2*a)
+    float decelDistance = (absSpeed * absSpeed) / (2.0f * ACCEL);
+
+    // Set new target to stop with smooth deceleration
+    long stopPos = currentPos + (long)(currentSpeed > 0 ? decelDistance : -decelDistance);
+    stepper.moveTo(stopPos);
+
+    // IMMEDIATELY update HomeKit targetPosition to STOP position to prevent shadesControl() from overwriting!
+    int stopPercent = calculatePercentForStep(stopPos);
+    if (targetPosition.value.int_value != stopPercent)
+    {
+      targetPosition.value.int_value = stopPercent;
+      homekit_characteristic_notify(&targetPosition, targetPosition.value);
+    }
+
+    state.lastMessage = F("Stopping...");
+  }
+  else
+  {
+    // Already stopped or very slow - instant stop
+    stepper.setCurrentPosition(currentPos);
+    stepper.moveTo(currentPos);
+
+    // Update targetPosition immediately for HomeKit
+    int currentPercent = getCurrentPosition();
+    if (targetPosition.value.int_value != currentPercent)
+    {
+      targetPosition.value.int_value = currentPercent;
+      homekit_characteristic_notify(&targetPosition, targetPosition.value);
+    }
+
+    positionState.value.int_value = POS_STOPPED;
+    homekit_characteristic_notify(&positionState, positionState.value);
+    state.lastMessage = F("Stopped");
+  }
 }
 
 void BA_calToggleJog(int8_t dir)
