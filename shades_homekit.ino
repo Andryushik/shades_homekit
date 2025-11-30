@@ -9,6 +9,10 @@
 #include "Globals.h"
 #include "web.h"
 
+// OTA Password configuration (optional)
+// Uncomment and set your password if you want OTA authentication
+// #define OTA_PASSWORD "your_password_here"
+
 // Speed/settings constants
 const float SPEED_MAX = 450.0f; // steps/s
 const float ACCEL = 150.0f;     // steps/s^2

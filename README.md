@@ -117,7 +117,19 @@ Timing constants (configurable in `Globals.h`):
 
 ### OTA (wireless firmware updates)
 
-OTA is implemented via ArduinoOTA in `ota.cpp`. Default password: 28142814 (can be configured via config).
+OTA is implemented via ArduinoOTA in `ota.cpp`.
+
+**Password Configuration:**
+
+- By default: **no password required** (open access)
+- To enable password: uncomment and set `#define OTA_PASSWORD "your_password"` in `shades_homekit.ino`
+- Example: `#define OTA_PASSWORD "mypassword123"`
+- If password is empty or not defined: authentication disabled
+
+**Usage:**
+
+- Open Arduino IDE → Tools → Port → Network ports → select your device
+- Upload as usual, enter password if configured
 
 To build a lean image without OTA, comment out `#define ENABLE_OTA` in `ota.cpp` and rebuild.
 
