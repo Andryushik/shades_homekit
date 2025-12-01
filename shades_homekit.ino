@@ -9,9 +9,9 @@
 #include "web.h"
 
 // Speed/settings constants
-const float SPEED_MAX = 700.0f; // steps/s
-const float ACCEL = 250.0f;     // steps/s^2
-const float CAL_SPEED = 250.0f; // steps/s during calibration (continuous)
+const float SPEED_MAX = 800.0f; // steps/s
+const float ACCEL = 200.0f;     // steps/s^2
+const float CAL_SPEED = 200.0f; // steps/s during calibration (continuous)
 // HOLD_TORQUE_MS semantics:
 //   0   -> disable coils immediately after stop
 //  >0   -> keep coils energized for that many milliseconds, then disable
@@ -78,7 +78,7 @@ void setup()
   DPRINTLN("=== TEST BUILD " __DATE__ " " __TIME__ " ===");
 
   pinMode(LED_PIN, OUTPUT);
-  // BUTTON_MAIN (D0) not used; MAIN is simulated by both UP+DOWN pressed
+  // BUTTON_MAIN is simulated by both UP+DOWN pressed
   pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
   pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
 
@@ -211,7 +211,7 @@ void properLedDisplay()
   }
   // Reduce brightness when idle for LED
   // ESP8266 PWM range is 0..255; LED is active-low on most boards
-  int duty = (stepper.distanceToGo() != 0) ? 0 : 240;
+  int duty = (stepper.distanceToGo() != 0) ? 0 : 254;
   analogWrite(LED_PIN, duty);
 }
 

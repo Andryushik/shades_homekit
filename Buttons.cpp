@@ -177,16 +177,9 @@ namespace Buttons
 
       if (bothShortPress)
       {
-        // MAIN short press: stop and set current position as target
-        int newTarget = getCurrentPosition();
-        DPRINT("MAIN short press: STOP at position %: ");
-        DPRINTLN(newTarget);
-        targetPosition.value.int_value = newTarget;
-        homekit_characteristic_notify(&targetPosition, targetPosition.value);
-        stepper.moveTo(stepper.currentPosition());
-        positionState.value.int_value = POS_STOPPED;
-        homekit_characteristic_notify(&positionState, positionState.value);
-        state.lastMessage = F("Stopped");
+        // MAIN short press: use unified smooth STOP logic (same as web)
+        DPRINTLN("MAIN short press: STOP");
+        BA_stopMotion();
         // cancel any pending preset
         pendingPresetDir = 0;
       }
