@@ -9,9 +9,9 @@
 #include "web.h"
 
 // Speed/settings constants
-const float SPEED_MAX = 800.0f; // steps/s
-const float ACCEL = 200.0f;     // steps/s^2
-const float CAL_SPEED = 200.0f; // steps/s during calibration (continuous)
+const float SPEED_MAX = 900.0f; // steps/s
+const float ACCEL = 300.0f;     // steps/s^2
+const float CAL_SPEED = 300.0f; // steps/s during calibration (continuous)
 // HOLD_TORQUE_MS semantics:
 //   0   -> disable coils immediately after stop
 //  >0   -> keep coils energized for that many milliseconds, then disable

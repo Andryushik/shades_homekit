@@ -83,6 +83,11 @@ h1{margin:0 0 16px 0;font-size:24px;color:#2c3e50;text-align:center}
 <button class="btn btn-secondary" data-act='/cal/down/start'>⬇️ Close</button>
 <button class="btn btn-stop" id='btnStop' data-act='/cal/hold/stop'>⏹️ Stop</button>
 </div>
+<div class="btn-row">
+<button class="btn" data-act='/preset/30'>30%</button>
+<button class="btn" data-act='/preset/50'>50%</button>
+<button class="btn" data-act='/preset/70'>70%</button>
+</div>
 </div>
 
 <div class="card">
@@ -203,6 +208,46 @@ static void handleDownStart()
   sendQuickResponse();
 }
 
+static void handlePreset30()
+{
+  if (state.currentMode == CALIBRATE)
+  {
+    // ignore during calibration
+  }
+  else
+  {
+    BA_moveToPercent(30);
+    DPRINTLN("WEB: Move to 30% preset");
+  }
+  sendQuickResponse();
+}
+
+static void handlePreset50()
+{
+  if (state.currentMode == CALIBRATE)
+  {
+  }
+  else
+  {
+    BA_moveToPercent(50);
+    DPRINTLN("WEB: Move to 50% preset");
+  }
+  sendQuickResponse();
+}
+
+static void handlePreset70()
+{
+  if (state.currentMode == CALIBRATE)
+  {
+  }
+  else
+  {
+    BA_moveToPercent(70);
+    DPRINTLN("WEB: Move to 70% preset");
+  }
+  sendQuickResponse();
+}
+
 static void handleHoldStop()
 {
   if (state.currentMode == CALIBRATE)
@@ -304,6 +349,9 @@ void webBegin()
   server.on("/cal/hold/stop", HTTP_POST, handleHoldStop);
   server.on("/cal/saveTop", HTTP_POST, handleSaveTop);
   server.on("/cal/saveBottom", HTTP_POST, handleSaveBottom);
+  server.on("/preset/30", HTTP_POST, handlePreset30);
+  server.on("/preset/50", HTTP_POST, handlePreset50);
+  server.on("/preset/70", HTTP_POST, handlePreset70);
   server.on("/reboot", HTTP_POST, handleReboot);
   server.begin();
 }
