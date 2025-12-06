@@ -10,7 +10,7 @@ Firmware for an ESP8266 (NodeMCU V3) controlling a 28BYJ‑48 stepper via ULN200
 - Minimal persisted state (`/config.json`): currentStep, maxSteps, targetPositionValue, raw calibration points.
 - Wi-Fi captive portal on first boot (AP: "Roller Shades Configuration").
 - Continuous calibration jogging (constant speed; acceleration disabled).
-- Web UI: movement control, calibration start/stop/save, safe reboot, factory reset.
+- Web UI: movement control, presets (30% / 50% / 70%), calibration start/stop/save, safe reboot, factory reset.
 - Safe reboot: saves current position, sets target to it, HTML page with auto redirect, then restart.
 
 ## Hardware
@@ -24,12 +24,12 @@ Firmware for an ESP8266 (NodeMCU V3) controlling a 28BYJ‑48 stepper via ULN200
 
 Pin wiring (AccelStepper HALF4WIRE, coil order IN1, IN3, IN2, IN4 as used in code):
 
-- IN1 → D1 (GPIO5)
-- IN2 → D5 (GPIO14)
-- IN3 → D6 (GPIO12)
-- IN4 → D7 (GPIO13)
+- IN1 → D7 (GPIO13)
+- IN2 → D6 (GPIO12)
+- IN3 → D5 (GPIO14)
+- IN4 → D1 (GPIO5)
 
-To reverse motor direction just flip the wiring order of the four ULN2003 inputs. For example: IN1→D7, IN2→D6, IN3→D5, IN4→D1 (no code changes are required when you flip the wiring).
+To reverse motor direction just flip the wiring order of the four ULN2003 inputs. For example: IN1→D1, IN2→D5, IN3→D6, IN4→D7 (no code changes are required when you flip the wiring).
 
 Caution: Do not hold DOWN (GPIO0) during power‑up—forces flash mode.
 
@@ -80,14 +80,15 @@ Save triggers:
 
 ## Web UI
 
-Root (`/`): Mode, current step, maxSteps, percent position, last message, buttons: Up / Down / Stop, Start/Exit Calibration, Save Top/Bottom, Safe Reboot, Factory Reset.
+Root (`/`): Mode, current step, maxSteps, percent position, last message, buttons: Up / Down / Stop, Presets 30/50/70, Start/Exit Calibration, Save Top/Bottom, Safe Reboot, Factory Reset.
 
-Status polling: JS fetches `/status` every 400 ms. Stop button blinks while position changes. Messages display movement or calibration feedback (errors highlighted).
+Status polling: JS fetches `/status` every 200 ms. Stop button blinks while position changes. Messages display movement or calibration feedback (errors highlighted).
 
 Endpoints (POST unless marked GET):
 
 - `/cal/start`, `/cal/stop`
 - `/cal/up/start`, `/cal/down/start` (toggle continuous jog in CALIBRATE)
+- `/preset/30`, `/preset/50`, `/preset/70` (move to 30% / 50% / 70%)
 - `/cal/hold/stop` (stop jog OR STOP motion in NORMAL)
 - `/cal/saveTop`, `/cal/saveBottom`
 - `/reboot` (safe reboot)
@@ -97,6 +98,12 @@ Endpoints (POST unless marked GET):
 Writes to SPIFFS limited to essential moments (movement completion, calibration success, reboot).
 
 You can reach the web UI either by entering the device IP in your browser (for example `http://192.168.x.y/`) or, once mDNS is active, via `http://roller_shades.local/` on the same LAN.
+
+## 3D Files
+
+Smart roller shades printable parts and enclosure:
+
+- <https://www.printables.com/model/1505710-smart-roller-shades-esp8266-homekit>
 
 ## Software & Build
 
